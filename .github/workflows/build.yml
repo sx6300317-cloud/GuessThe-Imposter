@@ -177,30 +177,37 @@ jobs:
               private static final String START_URL = "file:///android_asset/index.html";
               private WebView web;
 
-              // AdMob interstitial (shown from the game via GtiNative.showAd(), never more often than every 2 minutes)
+              // AdMob interstitial: one ad when the app opens, one when it is closed (nothing in between)
               private static final String AD_UNIT = "ca-app-pub-8284549504202077/4511959526";
-              private static final long AD_GAP_MS = 120000L;
+              private static final long OPEN_WAIT_MS = 8000L;
               private InterstitialAd interstitial;
               private boolean adLoading = false;
-              private long lastAdShown = System.currentTimeMillis();
+              private boolean openAdDone = false;
+              private final long startedAt = System.currentTimeMillis();
 
               private void loadAd() {
                   if (adLoading || interstitial != null) return;
                   adLoading = true;
                   InterstitialAd.load(this, AD_UNIT, new AdRequest.Builder().build(), new InterstitialAdLoadCallback() {
-                      @Override public void onAdLoaded(InterstitialAd ad) { interstitial = ad; adLoading = false; }
-                      @Override public void onAdFailedToLoad(LoadAdError e) { interstitial = null; adLoading = false; }
+                      @Override public void onAdLoaded(InterstitialAd ad) {
+                          interstitial = ad; adLoading = false;
+                          if (!openAdDone) {
+                              openAdDone = true;
+                              if (System.currentTimeMillis() - startedAt < OPEN_WAIT_MS) showAd(null);
+                          }
+                      }
+                      @Override public void onAdFailedToLoad(LoadAdError e) { interstitial = null; adLoading = false; openAdDone = true; }
                   });
               }
 
-              private void showAd() {
-                  if (interstitial == null) { loadAd(); return; }
-                  if (System.currentTimeMillis() - lastAdShown < AD_GAP_MS) return;
+              /** Shows the loaded ad (if any). `after` runs when the ad is closed, or immediately when there is no ad. */
+              private void showAd(final Runnable after) {
                   final InterstitialAd ad = interstitial;
+                  if (ad == null) { if (after != null) after.run(); return; }
                   interstitial = null;
                   ad.setFullScreenContentCallback(new FullScreenContentCallback() {
-                      @Override public void onAdDismissedFullScreenContent() { lastAdShown = System.currentTimeMillis(); loadAd(); }
-                      @Override public void onAdFailedToShowFullScreenContent(AdError e) { loadAd(); }
+                      @Override public void onAdDismissedFullScreenContent() { if (after != null) after.run(); }
+                      @Override public void onAdFailedToShowFullScreenContent(AdError e) { if (after != null) after.run(); }
                   });
                   ad.show(this);
               }
@@ -256,11 +263,6 @@ jobs:
               /** JavaScript-visible helpers: window.GtiNative.getDeviceName() / getDeviceId() */
               private class Bridge {
                   @JavascriptInterface
-                  public void showAd() {
-                      runOnUiThread(() -> { try { MainActivity.this.showAd(); } catch (Throwable ignored) { } });
-                  }
-
-                  @JavascriptInterface
                   public String getDeviceName() {
                       String m = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.trim();
                       String d = Build.MODEL == null ? "" : Build.MODEL.trim();
@@ -287,7 +289,11 @@ jobs:
                           "(function(){try{return window.gtiBack?String(window.gtiBack()):'exit'}catch(e){return 'exit'}})()",
                           value -> {
                               if (value == null || value.contains("exit")) {
-                                  finish();
+                                  // developer devices (admin mode) never get ads
+                                  web.evaluateJavascript("(function(){try{return window.gtiAdOk?String(window.gtiAdOk()):'true'}catch(e){return 'true'}})()", ok -> {
+                                      if (ok != null && ok.contains("false")) finish();
+                                      else showAd(() -> finish());
+                                  });
                               }
                           });
               }
