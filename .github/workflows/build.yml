@@ -370,6 +370,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "apk-${{ github.run_number }}" Guess-the-Imposter.apk \
-            --title "Guess the Imposter APK #${{ github.run_number }}" \
+          # keep only the newest release: delete every older one (and its tag)
+          for tg in $(gh release list --limit 100 --json tagName -q '.[].tagName'); do
+            gh release delete "$tg" --cleanup-tag -y || true
+          done
+          gh release create "latest" Guess-the-Imposter.apk \
+            --title "Guess the Imposter APK (build #${{ github.run_number }})" \
             --notes "Offline Android app. Download Guess-the-Imposter.apk and install it."
