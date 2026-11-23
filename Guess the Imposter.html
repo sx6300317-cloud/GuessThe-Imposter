@@ -494,7 +494,7 @@ function setN(n){snd(700);S.n=n;newRound();go('setup')}
 function start(){snd(800,.2);go('game')}
 function openNote(i){if(S.players[i].viewed||S.open>=0)return;snd(900);S.open=i;render()}
 function closeNote(){snd(400);S.players[S.open].viewed=true;S.open=-1;save();render()}
-function reveal(){snd(300,.3,'triangle');setTimeout(()=>snd(600,.3,'triangle'),150);go('reveal')}
+function reveal(){snd(300,.3,'triangle');try{if(window.GtiNative&&GtiNative.showAd&&!devIsAdmin()){window.__adc=(window.__adc||0)+1;if(window.__adc%3===0)GtiNative.showAd()}}catch(e){};setTimeout(()=>snd(600,.3,'triangle'),150);go('reveal')}
 function again(){snd(650);newRound();go('setup')}
 function home(){snd(450);S.cat=null;S.series=null;S.players=[];S.imp=[];S.open=-1;go('home')}
 function back(){snd(450);if(S.series==='coll')return go(S.cat==='marvel'?'moviepick':S.cat==='anime'?'animes':'cartoons');const c=CATS[S.cat];go(c.pick&&S.level==='easy'?'chars':'home')}

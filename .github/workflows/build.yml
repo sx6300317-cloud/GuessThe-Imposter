@@ -59,7 +59,7 @@ jobs:
           GTI_EOF
           cat > gradle.properties <<'GTI_EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-          android.useAndroidX=false
+          android.useAndroidX=true
           android.nonTransitiveRClass=true
           GTI_EOF
           cat > app/build.gradle <<'GTI_EOF'
@@ -95,6 +95,10 @@ jobs:
                   noCompress 'html'
               }
           }
+
+          dependencies {
+              implementation 'com.google.android.gms:play-services-ads:23.6.0'
+          }
           GTI_EOF
           cat > app/src/main/AndroidManifest.xml <<'GTI_EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -111,6 +115,11 @@ jobs:
                   android:label="@string/app_name"
                   android:usesCleartextTraffic="false"
                   android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+
+                  <!-- AdMob app id -->
+                  <meta-data
+                      android:name="com.google.android.gms.ads.APPLICATION_ID"
+                      android:value="ca-app-pub-8284549504202077~4871052178" />
 
                   <activity
                       android:name=".MainActivity"
@@ -150,6 +159,13 @@ jobs:
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+          import com.google.android.gms.ads.AdError;
+          import com.google.android.gms.ads.AdRequest;
+          import com.google.android.gms.ads.FullScreenContentCallback;
+          import com.google.android.gms.ads.LoadAdError;
+          import com.google.android.gms.ads.MobileAds;
+          import com.google.android.gms.ads.interstitial.InterstitialAd;
+          import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 
           /**
            * Loads the game from assets/index.html (100% offline).
@@ -160,6 +176,34 @@ jobs:
 
               private static final String START_URL = "file:///android_asset/index.html";
               private WebView web;
+
+              // AdMob interstitial (shown from the game via GtiNative.showAd(), never more often than every 2 minutes)
+              private static final String AD_UNIT = "ca-app-pub-8284549504202077/4511959526";
+              private static final long AD_GAP_MS = 120000L;
+              private InterstitialAd interstitial;
+              private boolean adLoading = false;
+              private long lastAdShown = System.currentTimeMillis();
+
+              private void loadAd() {
+                  if (adLoading || interstitial != null) return;
+                  adLoading = true;
+                  InterstitialAd.load(this, AD_UNIT, new AdRequest.Builder().build(), new InterstitialAdLoadCallback() {
+                      @Override public void onAdLoaded(InterstitialAd ad) { interstitial = ad; adLoading = false; }
+                      @Override public void onAdFailedToLoad(LoadAdError e) { interstitial = null; adLoading = false; }
+                  });
+              }
+
+              private void showAd() {
+                  if (interstitial == null) { loadAd(); return; }
+                  if (System.currentTimeMillis() - lastAdShown < AD_GAP_MS) return;
+                  final InterstitialAd ad = interstitial;
+                  interstitial = null;
+                  ad.setFullScreenContentCallback(new FullScreenContentCallback() {
+                      @Override public void onAdDismissedFullScreenContent() { lastAdShown = System.currentTimeMillis(); loadAd(); }
+                      @Override public void onAdFailedToShowFullScreenContent(AdError e) { loadAd(); }
+                  });
+                  ad.show(this);
+              }
 
               @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
               @Override
@@ -182,6 +226,11 @@ jobs:
                   s.setCacheMode(WebSettings.LOAD_DEFAULT);
 
                   web.addJavascriptInterface(new Bridge(), "GtiNative");
+
+                  try {
+                      MobileAds.initialize(this, status -> { });
+                      loadAd();
+                  } catch (Throwable ignored) { }
 
                   web.setWebViewClient(new WebViewClient() {
                       @Override
@@ -206,6 +255,11 @@ jobs:
 
               /** JavaScript-visible helpers: window.GtiNative.getDeviceName() / getDeviceId() */
               private class Bridge {
+                  @JavascriptInterface
+                  public void showAd() {
+                      runOnUiThread(() -> { try { MainActivity.this.showAd(); } catch (Throwable ignored) { } });
+                  }
+
                   @JavascriptInterface
                   public String getDeviceName() {
                       String m = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.trim();
