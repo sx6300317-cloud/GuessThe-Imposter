@@ -8,7 +8,7 @@ Made by **Sifat**. Works offline as an Android app.
 
 ## ⬇️ Download (Android APK)
 
-**[Download Guess-the-Imposter.apk](https://github.com/sx6300317-cloud/GuessTheImposter/releases/latest/download/Guess-the-Imposter.apk)**
+**[Download Guess-the-Imposter.apk](https://github.com/sx6300317-cloud/GuessThe-Imposter/releases/latest/download/Guess-the-Imposter.apk)**
 
 1. Open the link on your Android phone and download the file.
 2. Open it and tap *Install* (allow "install from this source" if asked).
