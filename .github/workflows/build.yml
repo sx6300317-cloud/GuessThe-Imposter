@@ -33,6 +33,8 @@ jobs:
           rm -rf android-build
           mkdir -p android-build/app/src/main/assets android-build/app/src/main/res/values android-build/app/src/main/java/com/sifat/guesstheimposter
           cp "$GAME" android-build/app/src/main/assets/index.html
+          sed -i "s/window.GTI_BUILD=0;/window.GTI_BUILD=${{ github.run_number }};/" android-build/app/src/main/assets/index.html
+          grep -c "GTI_BUILD=${{ github.run_number }};" android-build/app/src/main/assets/index.html
           cd android-build
           cat > settings.gradle <<'GTI_EOF'
           pluginManagement {
@@ -270,6 +272,17 @@ jobs:
 
               /** JavaScript-visible helpers: window.GtiNative.getDeviceName() / getDeviceId() */
               private class Bridge {
+                  @JavascriptInterface
+                  public void openUrl(final String url) {
+                      runOnUiThread(() -> {
+                          try {
+                              if (url != null && url.startsWith("https://")) {
+                                  startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+                              }
+                          } catch (Throwable ignored) { }
+                      });
+                  }
+
                   @JavascriptInterface
                   public String getDeviceName() {
                       String m = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.trim();

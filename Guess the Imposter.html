@@ -1357,9 +1357,10 @@ render();
    {"enabled":true|false,"message":""} on GET and accepts PUT. Devices that read OFF while online store a block flag in
    localStorage, so the game stays blocked offline; it is cleared the next time they read ON. The device where the password
    was entered is marked as admin and is never locked. */
-const DEV={url:'',api:'https://green-cell-7d6f.sx6300317.workers.dev',blkMsg:'এই ডিভাইসে গেমটি বন্ধ করে দেওয়া হয়েছে।',pollMs:30000,taps:3,gapMs:800,adminHeader:'X-Admin-Key',
+const DEV={updUrl:'https://github.com/sx6300317-cloud/GuessThe-Imposter/releases/latest',url:'',api:'https://green-cell-7d6f.sx6300317.workers.dev',blkMsg:'এই ডিভাইসে গেমটি বন্ধ করে দেওয়া হয়েছে।',pollMs:30000,taps:3,gapMs:800,adminHeader:'X-Admin-Key',
  pwHash:'2g8y7rv3obd-1dlk95vcwjx',defMsg:'গেমটি এই মুহূর্তে সাময়িকভাবে বন্ধ আছে। কিছুক্ষণ পরে আবার চেষ্টা করুন।'};
-const DK={block:'gti_block_flag',admin:'gti_admin_dev',edits:'gti_text_edits',dares:'gti_custom_dares',cfg:'gti_dev_cfg',pw:'gti_dev_pwh',dblock:'gti_dev_blocked',did:'gti_dev_id'};
+window.GTI_BUILD=0;/*set by build*/
+const DK={upd:'gti_need_update',block:'gti_block_flag',admin:'gti_admin_dev',edits:'gti_text_edits',dares:'gti_custom_dares',cfg:'gti_dev_cfg',pw:'gti_dev_pwh',dblock:'gti_dev_blocked',did:'gti_dev_id'};
 const lsG=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}};
 const lsS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const lsD=k=>{try{localStorage.removeItem(k)}catch(e){}};
@@ -1380,7 +1381,15 @@ function devParse(j){if(!j||typeof j!=='object')return null;let en=j.enabled;if(
  if(typeof en==='string')en=!/^(off|false|0|disabled)$/i.test(en.trim());if(typeof en!=='boolean')return null;
  return{enabled:en,message:typeof j.message==='string'?j.message:''}}
 /* --- lock screen: shown only for non-admin devices that hold a block flag --- */
+function devOpenUrl(u){try{if(window.GtiNative&&GtiNative.openUrl){GtiNative.openUrl(u);return}}catch(e){}window.open(u,'_blank')}
 function devApplyLock(){
+ const up=lsG(DK.upd,null);
+ if(up&&window.GTI_BUILD>=up.b){lsD(DK.upd)}
+ else if(up&&!devIsAdmin()){
+  if(!document.getElementById('devlock')||!document.querySelector('#devlock .updbtn')){devDel('devlock');
+   devMk('devlock',`${CREATOR()}<div class="lkbody"><i>⬇️</i><h2>নতুন ভার্সন এসেছে</h2><p class="sub" style="font-size:16px">এই ভার্সনটি আর চলবে না। চালিয়ে যেতে নতুন ভার্সন ডাউনলোড করুন।</p><button class="pri updbtn" style="padding:14px 22px;font-size:17px;border-radius:14px">⬇️ Download New Version</button><p class="sub" style="font-size:12px;word-break:break-all;user-select:all">${esc(up.u||DEV.updUrl)}</p></div>`);
+   const b=document.querySelector('#devlock .updbtn');if(b)b.onclick=()=>devOpenUrl(up.u||DEV.updUrl)}
+  return}
  const f=lsG(DK.block,null)||lsG(DK.dblock,null);
  if(devIsAdmin()||!f){devDel('devlock');return}
  const msg=esc(f.m||DEV.defMsg),old=document.getElementById('devlock');
@@ -1416,8 +1425,9 @@ async function devName(){
 const devApiUrl=p=>DEV.api.replace(/\/+$/,'')+p;
 async function devRegister(){
  if(!DEV.api)return;
- try{const r=await fetch(devApiUrl('/register'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:devId(),name:await devName(),platform:navigator.platform||'',lang:LG,t:Date.now()})});
+ try{const r=await fetch(devApiUrl('/register'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:devId(),name:await devName(),platform:navigator.platform||'',lang:LG,build:window.GTI_BUILD,t:Date.now()})});
   if(!r.ok)return;const j=await r.json();if(!j||typeof j.blocked!=='boolean')return;
+  if(window.GTI_BUILD>0){const mb=Number(j.minBuild)||0;if(mb>window.GTI_BUILD)lsS(DK.upd,{b:mb,u:(typeof j.updateUrl==='string'&&j.updateUrl)||DEV.updUrl});else lsD(DK.upd)}
   if(j.blocked)lsS(DK.dblock,{m:(typeof j.message==='string'&&j.message)||DEV.blkMsg,t:Date.now()});else lsD(DK.dblock);
   devApplyLock()}catch(e){}}
 const devSync=()=>{devFetch();devRegister()};
@@ -1492,6 +1502,11 @@ function devOpenPanel(){
   <div class="row"><button class="pri" id="devpwset">🔑 পাসওয়ার্ড পরিবর্তন করুন</button></div>
   <div class="row"><button id="devrst">🧹 টেক্সট এডিট মুছুন (${bnD(n)})</button><button class="dan" id="devrmadm">🚫 অ্যাডমিন মুক্তি বাতিল</button></div>
   <div class="dst" id="devst">${DEV.url?'রিমোট সংযুক্ত: ON/OFF সব ডিভাইসে কার্যকর হবে।':'⚠️ রিমোট URL সেট নেই — ON/OFF শুধু এই ডিভাইসে কাজ করবে।'}</div>
+  <div class="devsec"><h4>⬇️ জোর করে আপডেট</h4>
+   <div class="dst">এই অ্যাপের বিল্ড নম্বর: <b>${window.GTI_BUILD||'— (শুধু APK-তে)'}</b></div>
+   <label>ন্যূনতম বিল্ড (এর চেয়ে পুরোনো অ্যাপ লক হবে; ০ = কাউকে লক নয়)</label><input id="devminb" type="number" min="0" value="${window.GTI_BUILD||0}">
+   <label>ডাউনলোড লিংক</label><input id="devminu" type="text" value="${esc(DEV.updUrl)}" autocapitalize="off">
+   <div class="row"><button class="pri" id="devminset">⬇️ পুরোনো ভার্সন লক করুন</button></div><div class="derr" id="devminerr"></div></div>
   <div class="devsec"><h4>📱 ডিভাইস ম্যানেজমেন্ট</h4>
    <label>ডিভাইস সার্ভার URL (API)</label><input id="devapi" type="text" value="${esc(DEV.api)}" placeholder="https://…/api" autocapitalize="off">
    <div class="row"><button id="devref">🔄 রিফ্রেশ</button><button id="devdemo">🧪 ${DVL.demo?'ডেমো বন্ধ':'ডেমো'}</button></div>
@@ -1520,6 +1535,8 @@ function devOpenPanel(){
   else{lsS(DK.dares,lines);LUDO_DARES.splice(0,LUDO_DARES.length,...lines)}
   if(!DV.enabled&&DEV.url)devPush(false,DV.message,devPw);
   devToast('💾 সেভ হয়েছে (অফলাইনেও থাকবে)');devDel('devpanel')};
+ q('devminset').onclick=()=>{const e=q('devminerr');e.style.color='';e.textContent='';if(!DEV.api){e.textContent='আগে ডিভাইস সার্ভার URL দিন';return}
+  fetch(devApiUrl('/setmin'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':devPw},body:JSON.stringify({minBuild:Number(q('devminb').value)||0,url:q('devminu').value.trim()})}).then(r=>{if(!r.ok)throw 0;devToast('✅ সেট হয়েছে — পুরোনো অ্যাপ অনলাইন এলেই লক হবে')}).catch(()=>{e.textContent='⚠️ সার্ভারে সেট হয়নি (অনলাইন নেই / কী ভুল / সার্ভারে নতুন worker.js বসাননি)'})};
  q('devdef').onclick=()=>{q('devdares').value=DARES_DEF.join('\n')};
  q('devrst').onclick=()=>{TE={};lsD(DK.edits);teApply();devToast('টেক্সট এডিট মুছে ফেলা হয়েছে');devDel('devpanel')};
  q('devrmadm').onclick=()=>{lsD(DK.admin);devDel('devbar');devDel('devpanel');devFetch();devToast('এই ডিভাইসের অ্যাডমিন মুক্তি বাতিল')};
