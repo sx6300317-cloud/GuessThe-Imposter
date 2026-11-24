@@ -199,8 +199,6 @@ jobs:
                       }
                       @Override public void onAdFailedToLoad(LoadAdError e) {
                           interstitial = null; adLoading = false;
-                          // diagnostic message (shown on screen so the reason can be reported)
-                          try { android.widget.Toast.makeText(MainActivity.this, "Ad error " + e.getCode() + ": " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show(); } catch (Throwable ignored) { }
                           if (++adTries < 3) {
                               web.postDelayed(() -> loadAd(), 8000);
                           } else {
