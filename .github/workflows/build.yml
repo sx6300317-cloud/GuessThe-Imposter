@@ -179,7 +179,8 @@ jobs:
 
               // AdMob interstitial: one ad when the app opens, one when it is closed (nothing in between)
               private static final String AD_UNIT = "ca-app-pub-8284549504202077/4511959526";
-              private static final long OPEN_WAIT_MS = 8000L;
+              private static final long OPEN_WAIT_MS = 20000L;
+              private int adTries = 0;
               private InterstitialAd interstitial;
               private boolean adLoading = false;
               private boolean openAdDone = false;
@@ -196,7 +197,16 @@ jobs:
                               if (System.currentTimeMillis() - startedAt < OPEN_WAIT_MS) showAd(null);
                           }
                       }
-                      @Override public void onAdFailedToLoad(LoadAdError e) { interstitial = null; adLoading = false; openAdDone = true; }
+                      @Override public void onAdFailedToLoad(LoadAdError e) {
+                          interstitial = null; adLoading = false;
+                          // diagnostic message (shown on screen so the reason can be reported)
+                          try { android.widget.Toast.makeText(MainActivity.this, "Ad error " + e.getCode() + ": " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show(); } catch (Throwable ignored) { }
+                          if (++adTries < 3) {
+                              web.postDelayed(() -> loadAd(), 8000);
+                          } else {
+                              openAdDone = true;
+                          }
+                      }
                   });
               }
 
