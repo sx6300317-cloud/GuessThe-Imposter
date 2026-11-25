@@ -1428,8 +1428,17 @@ async function devRegister(){
  try{const r=await fetch(devApiUrl('/register'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:devId(),name:await devName(),platform:navigator.platform||'',lang:LG,build:window.GTI_BUILD,t:Date.now()})});
   if(!r.ok)return;const j=await r.json();if(!j||typeof j.blocked!=='boolean')return;
   if(window.GTI_BUILD>0){const mb=Number(j.minBuild)||0;if(mb>window.GTI_BUILD)lsS(DK.upd,{b:mb,u:(typeof j.updateUrl==='string'&&j.updateUrl)||DEV.updUrl});else lsD(DK.upd)}
+  if(typeof j.cv==='number'&&j.cv!==lsG('gti_cv',0))devPullContent(j.cv);
   if(j.blocked)lsS(DK.dblock,{m:(typeof j.message==='string'&&j.message)||DEV.blkMsg,t:Date.now()});else lsD(DK.dblock);
   devApplyLock()}catch(e){}}
+function devPushContent(){try{if(!DEV.api||!devPw||!devIsAdmin())return;
+ fetch(devApiUrl('/setcontent'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':devPw},body:JSON.stringify({edits:TE,dares:lsG(DK.dares,null)})}).then(r=>{if(r.ok)devToast('☁️ সব ফোনে পাঠানো হয়েছে')}).catch(()=>{})}catch(e){}}
+async function devPullContent(cv){try{const r=await fetch(devApiUrl('/content')+'?_t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const c=await r.json();
+ if(devIsAdmin()){lsS('gti_cv',cv);return}
+ TE=(c&&c.edits&&typeof c.edits==='object')?c.edits:{};if(Object.keys(TE).length)lsS(DK.edits,TE);else lsD(DK.edits);
+ if(c&&Array.isArray(c.dares)&&c.dares.length){lsS(DK.dares,c.dares.map(String));LUDO_DARES.splice(0,LUDO_DARES.length,...c.dares.map(String))}
+ else{lsD(DK.dares);LUDO_DARES.splice(0,LUDO_DARES.length,...DARES_DEF)}
+ lsS('gti_cv',cv);teApply();if(typeof render==='function'&&!teOn)try{render()}catch(e){}}catch(e){}}
 const devSync=()=>{devFetch();devRegister()};
 let DVL={list:[],demo:false,err:'',loading:false,q:'',arm:null};
 const DVL_DEMO=()=>{const n=Date.now();return[
@@ -1533,12 +1542,13 @@ function devOpenPanel(){
   const lines=q('devdares').value.split('\n').map(x=>x.trim()).filter(Boolean);
   if(!lines.length||lines.join('\n')===DARES_DEF.join('\n')){lsD(DK.dares);LUDO_DARES.splice(0,LUDO_DARES.length,...DARES_DEF)}
   else{lsS(DK.dares,lines);LUDO_DARES.splice(0,LUDO_DARES.length,...lines)}
+  devPushContent();
   if(!DV.enabled&&DEV.url)devPush(false,DV.message,devPw);
   devToast('💾 সেভ হয়েছে (অফলাইনেও থাকবে)');devDel('devpanel')};
  q('devminset').onclick=()=>{const e=q('devminerr');e.style.color='';e.textContent='';if(!DEV.api){e.textContent='আগে ডিভাইস সার্ভার URL দিন';return}
   fetch(devApiUrl('/setmin'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':devPw},body:JSON.stringify({minBuild:Number(q('devminb').value)||0,url:q('devminu').value.trim()})}).then(r=>{if(!r.ok)throw 0;devToast('✅ সেট হয়েছে — পুরোনো অ্যাপ অনলাইন এলেই লক হবে')}).catch(()=>{e.textContent='⚠️ সার্ভারে সেট হয়নি (অনলাইন নেই / কী ভুল / সার্ভারে নতুন worker.js বসাননি)'})};
  q('devdef').onclick=()=>{q('devdares').value=DARES_DEF.join('\n')};
- q('devrst').onclick=()=>{TE={};lsD(DK.edits);teApply();devToast('টেক্সট এডিট মুছে ফেলা হয়েছে');devDel('devpanel')};
+ q('devrst').onclick=()=>{TE={};lsD(DK.edits);teApply();devPushContent();devToast('টেক্সট এডিট মুছে ফেলা হয়েছে');devDel('devpanel')};
  q('devrmadm').onclick=()=>{lsD(DK.admin);devDel('devbar');devDel('devpanel');devFetch();devToast('এই ডিভাইসের অ্যাডমিন মুক্তি বাতিল')};
  q('devpwset').onclick=()=>{const a=q('devnewpw').value,b=q('devnewpw2').value,e=q('devpwerr2');e.textContent='';
   if(a.length<4){e.textContent='অন্তত ৪ অক্ষরের পাসওয়ার্ড দিন';return}
@@ -1574,7 +1584,7 @@ function teOpen(node,el){
  teClose();teSel={node,el};el.classList.add('dev-hl');
  devMk('devedit',`<input id="devti" type="text" value="${esc(node.nodeValue.trim())}"><div class="row"><button class="pri" id="devts">Save</button><button class="dan" id="devtd">Delete</button><button id="devtr">Reset</button><button id="devtc">✕</button></div>`);
  const key=teKey(node),inp=document.getElementById('devti');
- const fin=()=>{lsS(DK.edits,TE);teApply();teClose()};
+ const fin=()=>{lsS(DK.edits,TE);teApply();teClose();devPushContent()};
  document.getElementById('devts').onclick=()=>{const v=inp.value.trim();if(!v||v===key)delete TE[key];if(v&&v!==key)TE[key]=v;if(!v)TE[key]='';fin()};
  document.getElementById('devtd').onclick=()=>{TE[key]='';fin()};
  document.getElementById('devtr').onclick=()=>{delete TE[key];fin()};
