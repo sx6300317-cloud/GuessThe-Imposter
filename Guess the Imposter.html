@@ -3,6 +3,7 @@
 <meta name="google" content="notranslate">
 <script>try{var _l=localStorage.getItem("gti_lang");if(_l==="en"||_l==="bn"||_l==="hi"||_l==="ur")document.documentElement.lang=_l}catch(e){}</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>(function(){try{var w=Math.min(window.innerWidth||0,screen.width||9999);if(w>=300&&w<400)document.documentElement.style.zoom=String(w/412)}catch(e){}})()</script>
 <title>Guess the Imposter</title>
 <style>
 :root{color-scheme:dark;--bg:#0d0f1a;--card:#171a2b;--tx:#f4f6ff;--mut:#8b90ad;--ac:#22c55e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -1432,7 +1433,7 @@ async function devRegister(){
   if(j.blocked)lsS(DK.dblock,{m:(typeof j.message==='string'&&j.message)||DEV.blkMsg,t:Date.now()});else lsD(DK.dblock);
   devApplyLock()}catch(e){}}
 function devPushContent(){try{if(!DEV.api||!devPw||!devIsAdmin())return;
- fetch(devApiUrl('/setcontent'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':devPw},body:JSON.stringify({edits:TE,dares:lsG(DK.dares,null)})}).then(r=>{if(r.ok)devToast('☁️ সব ফোনে পাঠানো হয়েছে')}).catch(()=>{})}catch(e){}}
+ fetch(devApiUrl('/setcontent'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':devSrvKey()},body:JSON.stringify({edits:TE,dares:lsG(DK.dares,null)})}).then(r=>{if(r.ok)devToast('☁️ সব ফোনে পাঠানো হয়েছে')}).catch(()=>{})}catch(e){}}
 async function devPullContent(cv){try{const r=await fetch(devApiUrl('/content')+'?_t='+Date.now(),{cache:'no-store'});if(!r.ok)return;const c=await r.json();
  if(devIsAdmin()){lsS('gti_cv',cv);return}
  TE=(c&&c.edits&&typeof c.edits==='object')?c.edits:{};if(Object.keys(TE).length)lsS(DK.edits,TE);else lsD(DK.edits);
@@ -1449,14 +1450,19 @@ const DVL_DEMO=()=>{const n=Date.now();return[
 function devAgo(t){const ms=typeof t==='number'?t:Date.parse(t);if(!ms)return'—';const s=Math.max(0,(Date.now()-ms)/1000);
  if(s<90)return'এইমাত্র অনলাইন';const m=s/60;if(m<60)return bnD(Math.round(m))+' মিনিট আগে';const h=m/60;if(h<24)return bnD(Math.round(h))+' ঘণ্টা আগে';return bnD(Math.round(h/24))+' দিন আগে'}
 function devNorm(x){return{id:String(x.id??x.deviceId??''),name:String(x.name??x.deviceName??x.model??'Unknown device'),blocked:!!x.blocked,lastSeen:x.lastSeen??x.last_seen??x.updated??0}}
-const devAdminH=()=>{const h={'Content-Type':'application/json'};if(DEV.adminHeader)h[DEV.adminHeader]=devPw;return h};
+const devSrvKey=()=>lsG('gti_srvkey','')||devPw;
+const devAdminH=()=>{const h={'Content-Type':'application/json'};if(DEV.adminHeader)h[DEV.adminHeader]=devSrvKey();return h};
+async function devHttpErr(r){let m='';try{const j=await r.json();m=j&&j.error?String(j.error):''}catch(e){}
+ if(r.status===401)return '401 — সার্ভারের অ্যাডমিন কী মেলেনি (নিচের "সার্ভার কী" ঘরে Cloudflare-এর ADMIN_KEY দিন)';
+ if(r.status===500)return '500 — সার্ভারে KV (নাম DB) যুক্ত নেই বা কোডে সমস্যা: '+m;
+ return r.status+(m?' — '+m:'')}
 async function devLoad(){
  DVL.err='';
  if(DVL.demo){if(!DVL.list.length||!DVL.list[0].id.startsWith('demo'))DVL.list=DVL_DEMO();devRenderList();return}
  if(!DEV.api){DVL.list=[];DVL.err='⚠️ ডিভাইস সার্ভার URL সেট নেই। উপরে URL দিয়ে Save করুন, অথবা 🧪 ডেমো দেখুন।';devRenderList();return}
  DVL.loading=true;devRenderList();
  try{const r=await fetch(devApiUrl('/list')+'?_t='+Date.now(),{headers:devAdminH(),cache:'no-store'});
-  if(!r.ok)throw new Error(r.status===401||r.status===403?'অ্যাডমিন কী ভুল/অনুমতি নেই':'সার্ভার '+r.status);
+  if(!r.ok)throw new Error(await devHttpErr(r));
   const j=await r.json();const arr=Array.isArray(j)?j:(j&&j.devices)||[];DVL.list=arr.map(devNorm).filter(d=>d.id)}
  catch(e){DVL.err='❌ '+(e&&e.message&&!/fetch|network/i.test(e.message)?e.message:'নেটওয়ার্ক সমস্যা')}
  DVL.loading=false;devRenderList()}
@@ -1464,7 +1470,7 @@ async function devToggle(id){
  const d=DVL.list.find(x=>x.id===id);if(!d)return;const to=!d.blocked;
  if(DVL.demo){d.blocked=to;devToast(to?'⛔ ব্লক করা হয়েছে (ডেমো)':'✅ আনব্লক করা হয়েছে (ডেমো)');devRenderList();return}
  try{const r=await fetch(devApiUrl('/block'),{method:'POST',headers:devAdminH(),body:JSON.stringify({id,blocked:to})});
-  if(!r.ok){devToast('❌ ব্যর্থ: সার্ভার '+r.status);return}
+  if(!r.ok){devToast('❌ ব্যর্থ: '+await devHttpErr(r));return}
   d.blocked=to;devToast(to?'⛔ ব্লক হয়েছে — অনলাইন এলেই কার্যকর হবে':'✅ আনব্লক হয়েছে')}catch(e){devToast('❌ নেটওয়ার্ক সমস্যা')}
  devRenderList()}
 function devRenderList(){
@@ -1517,6 +1523,7 @@ function devOpenPanel(){
    <label>ডাউনলোড লিংক</label><input id="devminu" type="text" value="${esc(DEV.updUrl)}" autocapitalize="off">
    <div class="row"><button class="pri" id="devminset">⬇️ পুরোনো ভার্সন লক করুন</button></div><div class="derr" id="devminerr"></div></div>
   <div class="devsec"><h4>📱 ডিভাইস ম্যানেজমেন্ট</h4>
+   <label>সার্ভার কী (Cloudflare-এর ADMIN_KEY — না দিলে ডেভেলপার পাসওয়ার্ডই ধরা হবে)</label><div class="row"><input id="devsrvk" type="text" value="${esc(lsG('gti_srvkey',''))}" placeholder="যেমন SSS" autocapitalize="off"><button id="devsrvs">Save</button></div>
    <label>ডিভাইস সার্ভার URL (API)</label><input id="devapi" type="text" value="${esc(DEV.api)}" placeholder="https://…/api" autocapitalize="off">
    <div class="row"><button id="devref">🔄 রিফ্রেশ</button><button id="devdemo">🧪 ${DVL.demo?'ডেমো বন্ধ':'ডেমো'}</button></div>
    <input id="devfind" type="text" placeholder="🔍 ডিভাইস খুঁজুন…" value="${esc(DVL.q)}">
@@ -1527,6 +1534,7 @@ function devOpenPanel(){
  q('devcl').onclick=()=>devDel('devpanel');
  const devSaveApi=()=>{const a=q('devapi').value.trim().replace(/\/+$/,'');if(a!==DEV.api){DEV.api=a;if(DEV.url||a)lsS(DK.cfg,{url:DEV.url,api:a});else lsD(DK.cfg)}};
  q('devref').onclick=()=>{devSaveApi();DVL.arm=null;devLoad()};
+ q('devsrvs').onclick=()=>{const v=q('devsrvk').value.trim();if(v)lsS('gti_srvkey',v);else lsD('gti_srvkey');devToast('✅ সার্ভার কী সেভ হয়েছে');devLoad()};
  q('devapi').addEventListener('keydown',e=>{if(e.key==='Enter'){devSaveApi();devLoad()}});
  q('devdemo').onclick=()=>{DVL.demo=!DVL.demo;DVL.list=[];DVL.arm=null;q('devdemo').textContent='🧪 '+(DVL.demo?'ডেমো বন্ধ':'ডেমো');devLoad()};
  q('devfind').oninput=e=>{DVL.q=e.target.value;devRenderList()};
@@ -1546,7 +1554,7 @@ function devOpenPanel(){
   if(!DV.enabled&&DEV.url)devPush(false,DV.message,devPw);
   devToast('💾 সেভ হয়েছে (অফলাইনেও থাকবে)');devDel('devpanel')};
  q('devminset').onclick=()=>{const e=q('devminerr');e.style.color='';e.textContent='';if(!DEV.api){e.textContent='আগে ডিভাইস সার্ভার URL দিন';return}
-  fetch(devApiUrl('/setmin'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':devPw},body:JSON.stringify({minBuild:Number(q('devminb').value)||0,url:q('devminu').value.trim()})}).then(r=>{if(!r.ok)throw 0;devToast('✅ সেট হয়েছে — পুরোনো অ্যাপ অনলাইন এলেই লক হবে')}).catch(()=>{e.textContent='⚠️ সার্ভারে সেট হয়নি (অনলাইন নেই / কী ভুল / সার্ভারে নতুন worker.js বসাননি)'})};
+  fetch(devApiUrl('/setmin'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':devSrvKey()},body:JSON.stringify({minBuild:Number(q('devminb').value)||0,url:q('devminu').value.trim()})}).then(async r=>{if(!r.ok){e.textContent='⚠️ '+await devHttpErr(r);return}devToast('✅ সেট হয়েছে — পুরোনো অ্যাপ অনলাইন এলেই লক হবে')}).catch(()=>{e.textContent='⚠️ সার্ভারে পৌঁছানো যায়নি — ইন্টারনেট/ঠিকানা দেখুন'})};
  q('devdef').onclick=()=>{q('devdares').value=DARES_DEF.join('\n')};
  q('devrst').onclick=()=>{TE={};lsD(DK.edits);teApply();devPushContent();devToast('টেক্সট এডিট মুছে ফেলা হয়েছে');devDel('devpanel')};
  q('devrmadm').onclick=()=>{lsD(DK.admin);devDel('devbar');devDel('devpanel');devFetch();devToast('এই ডিভাইসের অ্যাডমিন মুক্তি বাতিল')};
@@ -1555,8 +1563,8 @@ function devOpenPanel(){
   if(a!==b){e.textContent='দুটো পাসওয়ার্ড মিলছে না';return}
   const oldPw=devPw;lsS(DK.pw,devHash(a));devPw=a;q('devnewpw').value='';q('devnewpw2').value='';
   devToast('🔑 পাসওয়ার্ড পরিবর্তন হয়েছে — পুরোনোটা আর কাজ করবে না');
-  if(DEV.api){fetch(devApiUrl('/setkey'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':oldPw},body:JSON.stringify({key:a})})
-   .then(r=>{if(!r.ok)throw 0;devToast('🔑 সার্ভারেও নতুন পাসওয়ার্ড সেট হয়েছে')}).catch(()=>{e.textContent='⚠️ সার্ভারে পাসওয়ার্ড বদলানো যায়নি (অনলাইন নেই বা পুরোনো কী ভুল)। ডিভাইস ব্লক করতে অনলাইনে আবার পাসওয়ার্ড বদলান।'})}}}
+  if(DEV.api){fetch(devApiUrl('/setkey'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':lsG('gti_srvkey','')||oldPw},body:JSON.stringify({key:a})})
+   .then(r=>{if(!r.ok)throw 0;lsD('gti_srvkey');devToast('🔑 সার্ভারেও নতুন পাসওয়ার্ড সেট হয়েছে')}).catch(()=>{e.textContent='⚠️ সার্ভারে পাসওয়ার্ড বদলানো যায়নি (অনলাইন নেই বা পুরোনো কী ভুল)। ডিভাইস ব্লক করতে অনলাইনে আবার পাসওয়ার্ড বদলান।'})}}}
 /* --- inline text editor: edits are kept per original text and re-applied after every re-render --- */
 const TE_SKIP='.creator,#devbar,#devpanel,#devedit,#devpw,#devlock,#devbanner,#devtoast,textarea,input,script,style';
 let teObs=null,teSel=null;
