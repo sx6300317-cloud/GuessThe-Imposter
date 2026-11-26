@@ -307,6 +307,7 @@ body.cpic .creator .av img{opacity:1}
 .dvit .dvb.un{background:#16a34a}
 .dvit .dvb.arm{background:#fbbf24;color:#111}
 .dvit .dvb:disabled{opacity:.5}
+.dvit .dvd{border-radius:11px;padding:9px 10px;font-weight:900;font-size:13px;border:0;color:#fff;background:#475569;margin-left:6px}.dvit .dvd.arm{background:#fbbf24;color:#111}
 .dvit .dvme{font-size:11px;font-weight:800;color:var(--ac)}.devbox label{font-size:12px;color:var(--mut);font-weight:700}
 .devbox .editbtn{background:#fbbf24;color:#111;border-radius:16px;padding:14px;font-weight:900;font-size:17px}
 #devbanner{position:fixed;left:50%;transform:translateX(-50%);bottom:max(10px,env(safe-area-inset-bottom));z-index:160;background:#fbbf24;color:#111;font-weight:800;font-size:13px;padding:8px 12px;border-radius:20px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 18px #000a;white-space:nowrap}
@@ -1473,6 +1474,15 @@ async function devToggle(id){
   if(!r.ok){devToast('❌ ব্যর্থ: '+await devHttpErr(r));return}
   d.blocked=to;devToast(to?'⛔ ব্লক হয়েছে — অনলাইন এলেই কার্যকর হবে':'✅ আনব্লক হয়েছে')}catch(e){devToast('❌ নেটওয়ার্ক সমস্যা')}
  devRenderList()}
+async function devDelete(ids){
+ if(!ids.length)return;
+ if(DVL.demo){DVL.list=DVL.list.filter(x=>!ids.includes(x.id));devToast('🗑 মুছে ফেলা হয়েছে (ডেমো)');devRenderList();return}
+ try{const r=await fetch(devApiUrl('/delete'),{method:'POST',headers:devAdminH(),body:JSON.stringify({ids})});
+  if(!r.ok){devToast('❌ ব্যর্থ: '+(r.status===404?'সার্ভার আপডেট করুন (নতুন worker.js বসান)':await devHttpErr(r)));return}
+  DVL.list=DVL.list.filter(x=>!ids.includes(x.id));devToast('🗑 '+bnD(ids.length)+'টি ডিভাইস মুছে গেছে')}catch(e){devToast('❌ নেটওয়ার্ক সমস্যা')}
+ devRenderList()}
+function devDupIds(){const me=devId(),by={};DVL.list.forEach(d=>{(by[String(d.name).trim().toLowerCase()]=by[String(d.name).trim().toLowerCase()]||[]).push(d)});
+ const out=[];Object.values(by).forEach(g=>{g.sort((a,b)=>(b.id===me)-(a.id===me)||(+new Date(b.lastSeen||0))-(+new Date(a.lastSeen||0)));g.slice(1).forEach(d=>{if(!d.blocked&&d.id!==me)out.push(d.id)})});return out}
 function devRenderList(){
  const L=document.getElementById('devlist'),S=document.getElementById('devsum');if(!L)return;
  const me=devId(),q=(DVL.q||'').toLowerCase();
@@ -1481,7 +1491,7 @@ function devRenderList(){
  const nb=DVL.list.filter(d=>d.blocked).length;
  S.textContent=DVL.loading?'লোড হচ্ছে…':(DVL.err||('মোট '+bnD(DVL.list.length)+'টি ডিভাইস · ব্লকড '+bnD(nb)+'টি'+(DVL.demo?' · 🧪 ডেমো মোড':'')));
  L.innerHTML=rows.map(d=>{const isMe=d.id===me,arm=DVL.arm&&DVL.arm.id===d.id;
-  return `<div class="dvit ${d.blocked?'bk':''}"><span class="dvi">📱</span><div class="dvn"><b>${esc(d.name)}</b><small>${d.blocked?'⛔ ব্লকড · ':''}${esc(devAgo(d.lastSeen))} · ID …${esc(d.id.slice(-5))}</small>${isMe?'<span class="dvme">এই ডিভাইস</span>':''}</div>${isMe?'':`<button class="dvb ${d.blocked?'un':''} ${arm?'arm':''}" data-id="${esc(d.id)}">${arm?'নিশ্চিত?':(d.blocked?'✅ আনব্লক':'⛔ ব্লক')}</button>`}</div>`}).join('')||(DVL.err||DVL.loading?'':'<div class="dvsum">কোনো ডিভাইস নেই</div>')}
+  return `<div class="dvit ${d.blocked?'bk':''}"><span class="dvi">📱</span><div class="dvn"><b>${esc(d.name)}</b><small>${d.blocked?'⛔ ব্লকড · ':''}${esc(devAgo(d.lastSeen))} · ID …${esc(d.id.slice(-5))}</small>${isMe?'<span class="dvme">এই ডিভাইস</span>':''}</div>${isMe?'':`<button class="dvb ${d.blocked?'un':''} ${arm?'arm':''}" data-id="${esc(d.id)}">${arm?'নিশ্চিত?':(d.blocked?'✅ আনব্লক':'⛔ ব্লক')}</button><button class="dvd ${DVL.darm===d.id?'arm':''}" data-del="${esc(d.id)}">${DVL.darm===d.id?'মুছুন?':'🗑'}</button>`}</div>`}).join('')||(DVL.err||DVL.loading?'':'<div class="dvsum">কোনো ডিভাইস নেই</div>')}
 /* --- hidden tap trigger + password --- */
 function devTap(now){if(devTaps.length&&now-devTaps[devTaps.length-1]>DEV.gapMs)devTaps=[];devTaps.push(now);if(devTaps.length>=DEV.taps){devTaps=[];return true}return false}
 function devPrompt(){
@@ -1526,6 +1536,7 @@ function devOpenPanel(){
    <label>সার্ভার কী (Cloudflare-এর ADMIN_KEY — না দিলে ডেভেলপার পাসওয়ার্ডই ধরা হবে)</label><div class="row"><input id="devsrvk" type="text" value="${esc(lsG('gti_srvkey',''))}" placeholder="যেমন SSS" autocapitalize="off"><button id="devsrvs">Save</button></div>
    <label>ডিভাইস সার্ভার URL (API)</label><input id="devapi" type="text" value="${esc(DEV.api)}" placeholder="https://…/api" autocapitalize="off">
    <div class="row"><button id="devref">🔄 রিফ্রেশ</button><button id="devdemo">🧪 ${DVL.demo?'ডেমো বন্ধ':'ডেমো'}</button></div>
+   <div class="row"><button id="devdup">🧹 ডুপ্লিকেট/পুরনো মুছুন</button></div>
    <input id="devfind" type="text" placeholder="🔍 ডিভাইস খুঁজুন…" value="${esc(DVL.q)}">
    <div class="dvsum" id="devsum"></div><div class="dvlist" id="devlist"></div>
    <div class="dst">ব্লক করলে ওই ডিভাইস অনলাইন এলেই গেম লক হয়ে যাবে। আনব্লক করলে অনলাইন এলে আবার চালু হবে।</div></div>
@@ -1538,7 +1549,11 @@ function devOpenPanel(){
  q('devapi').addEventListener('keydown',e=>{if(e.key==='Enter'){devSaveApi();devLoad()}});
  q('devdemo').onclick=()=>{DVL.demo=!DVL.demo;DVL.list=[];DVL.arm=null;q('devdemo').textContent='🧪 '+(DVL.demo?'ডেমো বন্ধ':'ডেমো');devLoad()};
  q('devfind').oninput=e=>{DVL.q=e.target.value;devRenderList()};
- q('devlist').onclick=e=>{const b=e.target.closest&&e.target.closest('.dvb');if(!b)return;const id=b.dataset.id;
+ q('devdup').onclick=()=>{const ids=devDupIds();if(!ids.length){devToast('ডুপ্লিকেট নেই');return}
+  const bt=q('devdup');if(bt.dataset.arm==='1'){bt.dataset.arm='';bt.textContent='🧹 ডুপ্লিকেট/পুরনো মুছুন';devDelete(ids)}
+  else{bt.dataset.arm='1';bt.textContent='নিশ্চিত? '+bnD(ids.length)+'টি মুছবে — আবার চাপুন';setTimeout(()=>{bt.dataset.arm='';bt.textContent='🧹 ডুপ্লিকেট/পুরনো মুছুন'},4000)}};
+ q('devlist').onclick=e=>{const x=e.target.closest&&e.target.closest('.dvd');if(x){const id=x.dataset.del;if(DVL.darm===id){clearTimeout(DVL.dt);DVL.darm=null;devDelete([id])}else{clearTimeout(DVL.dt);DVL.darm=id;DVL.dt=setTimeout(()=>{DVL.darm=null;devRenderList()},3000);devRenderList()}return}
+  const b=e.target.closest&&e.target.closest('.dvb');if(!b)return;const id=b.dataset.id;
   if(DVL.arm&&DVL.arm.id===id){clearTimeout(DVL.arm.t);DVL.arm=null;devToggle(id)}
   else{if(DVL.arm)clearTimeout(DVL.arm.t);DVL.arm={id,t:setTimeout(()=>{DVL.arm=null;devRenderList()},3000)};devRenderList()}};
  devLoad();

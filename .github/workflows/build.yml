@@ -283,13 +283,40 @@ jobs:
                       });
                   }
 
+                  private String prop(String k) {
+                      try {
+                          Process p = Runtime.getRuntime().exec(new String[]{"getprop", k});
+                          java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
+                          String l = r.readLine();
+                          r.close();
+                          return l == null ? "" : l.trim();
+                      } catch (Throwable e) { return ""; }
+                  }
+
                   @JavascriptInterface
                   public String getDeviceName() {
                       String m = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.trim();
                       String d = Build.MODEL == null ? "" : Build.MODEL.trim();
-                      if (!m.isEmpty() && d.toLowerCase().startsWith(m.toLowerCase())) return d;
-                      String name = (m.isEmpty() ? "" : Character.toUpperCase(m.charAt(0)) + m.substring(1) + " ") + d;
-                      return name.trim().isEmpty() ? "Android device" : name.trim();
+                      String mk = "";
+                      String[] keys = {"ro.product.marketname", "ro.vendor.oplus.market.name", "ro.config.marketing_name",
+                              "ro.product.vendor.marketname", "ro.product.odm.marketname", "ro.product.system.marketname",
+                              "ro.oppo.market.name", "ro.vivo.market.name", "ro.product.vendor.model_name"};
+                      for (String k : keys) { mk = prop(k); if (!mk.isEmpty()) break; }
+                      if (mk.isEmpty()) {
+                          try {
+                              String dn = Settings.Global.getString(getContentResolver(), "device_name");
+                              if (dn != null && !dn.trim().isEmpty() && !dn.trim().equalsIgnoreCase(d)) mk = dn.trim();
+                          } catch (Throwable ignored) { }
+                      }
+                      String brand = m.isEmpty() ? "" : Character.toUpperCase(m.charAt(0)) + m.substring(1);
+                      if (mk.isEmpty()) {
+                          if (!m.isEmpty() && d.toLowerCase().startsWith(m.toLowerCase())) return d;
+                          String n = (brand + " " + d).trim();
+                          return n.isEmpty() ? "Android device" : n;
+                      }
+                      String full = (!m.isEmpty() && mk.toLowerCase().startsWith(m.toLowerCase())) ? mk : (brand + " " + mk).trim();
+                      if (!d.isEmpty() && !full.toLowerCase().contains(d.toLowerCase())) full += " (" + d + ")";
+                      return full;
                   }
 
                   @JavascriptInterface
