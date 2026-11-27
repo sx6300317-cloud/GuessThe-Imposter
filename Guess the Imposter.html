@@ -1430,6 +1430,7 @@ async function devRegister(){
  try{const r=await fetch(devApiUrl('/register'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:devId(),name:await devName(),platform:navigator.platform||'',lang:LG,build:window.GTI_BUILD,t:Date.now()})});
   if(!r.ok)return;const j=await r.json();if(!j||typeof j.blocked!=='boolean')return;
   if(window.GTI_BUILD>0){const mb=Number(j.minBuild)||0;if(mb>window.GTI_BUILD)lsS(DK.upd,{b:mb,u:(typeof j.updateUrl==='string'&&j.updateUrl)||DEV.updUrl});else lsD(DK.upd)}
+  if(typeof j.pwh==='string'&&j.pwh&&j.pwh.length<64&&j.pwh!==lsG(DK.pw,''))lsS(DK.pw,j.pwh);
   if(typeof j.cv==='number'&&j.cv!==lsG('gti_cv',0))devPullContent(j.cv);
   if(j.blocked)lsS(DK.dblock,{m:(typeof j.message==='string'&&j.message)||DEV.blkMsg,t:Date.now()});else lsD(DK.dblock);
   devApplyLock()}catch(e){}}
@@ -1578,7 +1579,7 @@ function devOpenPanel(){
   if(a!==b){e.textContent='দুটো পাসওয়ার্ড মিলছে না';return}
   const oldPw=devPw;lsS(DK.pw,devHash(a));devPw=a;q('devnewpw').value='';q('devnewpw2').value='';
   devToast('🔑 পাসওয়ার্ড পরিবর্তন হয়েছে — পুরোনোটা আর কাজ করবে না');
-  if(DEV.api){fetch(devApiUrl('/setkey'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':lsG('gti_srvkey','')||oldPw},body:JSON.stringify({key:a})})
+  if(DEV.api){fetch(devApiUrl('/setkey'),{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':lsG('gti_srvkey','')||oldPw},body:JSON.stringify({key:a,pwh:devHash(a)})})
    .then(r=>{if(!r.ok)throw 0;lsD('gti_srvkey');devToast('🔑 সার্ভারেও নতুন পাসওয়ার্ড সেট হয়েছে')}).catch(()=>{e.textContent='⚠️ সার্ভারে পাসওয়ার্ড বদলানো যায়নি (অনলাইন নেই বা পুরোনো কী ভুল)। ডিভাইস ব্লক করতে অনলাইনে আবার পাসওয়ার্ড বদলান।'})}}}
 /* --- inline text editor: edits are kept per original text and re-applied after every re-render --- */
 const TE_SKIP='.creator,#devbar,#devpanel,#devedit,#devpw,#devlock,#devbanner,#devtoast,textarea,input,script,style';
