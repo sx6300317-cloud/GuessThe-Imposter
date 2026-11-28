@@ -1,4 +1,4 @@
-<p align="center"><img src="banner.png" width="360" alt="Guess the Imposter game screen"></p>
+<p align="center"><img src="icon.png" width="200" alt="Guess the Imposter logo"></p>
 
 # Guess the Imposter 🕵️
 
