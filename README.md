@@ -1,4 +1,4 @@
-<p align="center"><img src="creator.png" width="120" alt="Sifat"></p>
+<p align="center"><img src="banner.png" width="360" alt="Guess the Imposter game screen"></p>
 
 # Guess the Imposter 🕵️
 
